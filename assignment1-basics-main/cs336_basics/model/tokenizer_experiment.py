@@ -4,7 +4,7 @@ import random
 import numpy as np
 from typing import Iterator, TextIO
 
-from cs336_basics.model import Tokenizer
+from cs336_basics.model.Tokenizer import Tokenizer
 
 EOT = "<|endoftext|>"
 
