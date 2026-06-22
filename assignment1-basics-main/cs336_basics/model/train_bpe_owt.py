@@ -35,7 +35,6 @@ def main():
             vocab_size=vocab_size,
             special_tokens=special_tokens,
             num_processes=4,
-            max_lines=MAX_TRAINING_LINES  # 如果train_bpe支持
         )
     except MemoryError:
         print("MemoryError occurred! Trying with reduced settings...")
@@ -45,7 +44,6 @@ def main():
             vocab_size=vocab_size // 2,  # 减小vocab
             special_tokens=special_tokens,
             num_processes=1,
-            max_lines=MAX_TRAINING_LINES // 2
         )
 
     t1 = time.perf_counter()
