@@ -191,7 +191,7 @@ def train_bpe(
     # =====================================================
     # word freq
     # =====================================================
-    if num_processes > 1:
+    if num_processes > =1:
         if boundaries is None:
             boundaries = find_chunk_boundaries(
                 input_path,

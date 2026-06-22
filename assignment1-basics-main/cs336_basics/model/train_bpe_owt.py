@@ -19,7 +19,7 @@ def main():
         input_path=input_path,
         vocab_size=vocab_size,
         special_tokens=special_tokens,
-        num_processes=2
+        num_processes=1
     )
     t1 = time.perf_counter()
 
