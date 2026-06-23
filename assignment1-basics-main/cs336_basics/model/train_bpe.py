@@ -260,3 +260,5 @@ def train_bpe(
                 pair_counts.pop(p, None)
 
     return vocab, merges
+
+# 1
