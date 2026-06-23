@@ -91,16 +91,16 @@ def process_chunk(args):
     if special_tokens:
         special_token_set = set(special_tokens)
         pattern = (
-            "(" +
-            "|".join(
-                re.escape(t)
-                for t in sorted(
-                    special_tokens,
-                    key=len,
-                    reverse=True
+                "(" +
+                "|".join(
+                    re.escape(t)
+                    for t in sorted(
+                        special_tokens,
+                        key=len,
+                        reverse=True
+                    )
                 )
-            )
-            + ")"
+                + ")"
         )
         parts = re.split(pattern, text)
         for part in parts:
@@ -248,56 +248,66 @@ def train_bpe(
     # =====================================================
     # main loop
     # =====================================================
+    vocab_cache = {}
+
+    # =====================================================
+    # main loop
+    # =====================================================
     while next_id < vocab_size and pair_counts:
-        best_pair = max(
-            pair_counts.items(),
-            key=lambda x: (
-                x[1],
-                vocab[x[0][0]],
-                vocab[x[0][1]]
-            )
-        )[0]
+        # 优化：使用缓存加速best_pair选择
+        best_pair = max(pair_counts.items(),
+                        key=lambda x: (x[1],
+                                       vocab_cache.setdefault(x[0][0], vocab[x[0][0]]),
+                                       vocab_cache.setdefault(x[0][1], vocab[x[0][1]]))
+                        )[0]
+
         a, b = best_pair
         new_id = next_id
         next_id += 1
         vocab[new_id] = vocab[a] + vocab[b]
-        merges.append(
-            (
-                vocab[a],
-                vocab[b]
-            )
-        )
+        merges.append((vocab[a], vocab[b]))
+
         affected = list(pair_index[best_pair])
         pair_index.pop(best_pair, None)
         pair_counts.pop(best_pair, None)
+
+        # =====================================================
+        # 优化：减少重复遍历
+        # =====================================================
         delta = defaultdict(int)
+
         for idx in affected:
-            ids, freq = words[idx]
-            old_ids = ids
-            new_ids = merge_word(
-                old_ids,
-                best_pair,
-                new_id
-            )
+            old_ids, freq = words[idx]
+            new_ids = merge_word(old_ids, best_pair, new_id)
             words[idx] = (new_ids, freq)
+
+            # 优化1：只遍历old_ids一次，计算要移除的pairs
             for i in range(len(old_ids) - 1):
-                p = (
-                    old_ids[i],
-                    old_ids[i + 1]
-                )
+                p = (old_ids[i], old_ids[i + 1])
                 delta[p] -= freq
                 pair_index[p].discard(idx)
+
+            # 优化2：只遍历new_ids一次，计算要添加的pairs
             for i in range(len(new_ids) - 1):
-                p = (
-                    new_ids[i],
-                    new_ids[i + 1]
-                )
+                p = (new_ids[i], new_ids[i + 1])
                 delta[p] += freq
                 pair_index[p].add(idx)
+
+        # 优化3：批量应用delta，减少字典查找
         for p, d in delta.items():
-            pair_counts[p] += d
-            if pair_counts[p] <= 0:
-                pair_counts.pop(p, None)
+            if d == 0:
+                continue
+            if p not in pair_counts:
+                if d > 0:
+                    pair_counts[p] = d
+            else:
+                pair_counts[p] += d
+                if pair_counts[p] <= 0:
+                    pair_counts.pop(p, None)
+                    pair_index.pop(p, None)
+        if next_id % 500 == 0:
+            empty = [p for p, s in pair_index.items() if not s]
+            for p in empty:
                 pair_index.pop(p, None)
+                pair_counts.pop(p, None)
     return vocab, merges
-##
